@@ -52,6 +52,9 @@
 /* Standard Includes */
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include "lcd.h"
+#include "delays.h"
 
 #define A2TIMER_PERIOD  30000  //drives servos at 50 Hz (period of 20 ms)
 //angle servo macros
@@ -171,6 +174,19 @@ void initializeServo(void){
     MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2);
 }
 
+void initializeLCD(){
+    configLCD(GPIO_PORT_P6, GPIO_PIN1, GPIO_PORT_P6, GPIO_PIN0, GPIO_PORT_P4);
+    initDelayTimer(CS_getMCLK());
+    initLCD();
+    printChar('h');
+    printChar('o');
+    printChar('w');
+    printChar('d');
+    printChar('y');
+    printChar('!');
+    printChar(' ');
+}
+
 int main(void)
 {
     /* Stop Watchdog  */
@@ -201,6 +217,7 @@ int main(void)
 
        initializeADC(); //configure ADC
        initializeServo();
+       initializeLCD();
 
 
     while(1)
