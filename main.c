@@ -106,7 +106,8 @@ static volatile bool stopSent;
 bool currentSlave = true;
 
 //first: get servos responding to joystick correctly - done
-//second: get state0 working
+//second: get I2C reading different values - done
+//third: get LCD printing data in units desired.
 
 //TA2: controls anglular servo pulse width
 Timer_A_PWMConfig pwmConfigA2AServo =
