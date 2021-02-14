@@ -306,25 +306,19 @@ void normalState(){
     speedLimit = MAX_SPEED;
     //this is test code
     if(write){
-        write = false;
+       write = false;
+    if(currentSlave){
+        commandInstruction(SET_CURSOR_MASK | LINE1_OFFSET);
         char zLArray[5];
-        sprintf(zLArray, "%ld", accel_zR);
-        char zRArray[5];
-        sprintf(zRArray, "%ld", accel_zL);
-
-        commandInstruction(CLEAR_DISPLAY_MASK);
+        sprintf(zLArray, "%ld", accel_zL);
         int i;
         for(i = 0; i < 5; i++ ){
             if(zLArray[i] != 0){
             printChar(zLArray[i]);
             }
         }
-        commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
-        for(i = 0; i < 5; i++ ){
-            if(zRArray[i] != 0){
-            printChar(zRArray[i]);
-            }
-        }
+        printChar(' ');
+        printChar(' ');
 
         /* Send start and the first byte of the transmit buffer. */
         MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
@@ -333,6 +327,27 @@ void normalState(){
         xferIndex = 0;
         MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
         MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }else{
+        commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+        char zRArray[5];
+        sprintf(zRArray, "%ld", accel_zR);
+        int i;
+        for(i = 0; i < 5; i++ ){
+            if(zRArray[i] != 0){
+            printChar(zRArray[i]);
+            }
+        }
+        printChar(' ');
+        printChar(' ');
+
+        /* Send start and the first byte of the transmit buffer. */
+        MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+        /* Sent the first byte, now we need to initiate the read */
+        xferIndex = 0;
+        MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+        MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
     }
     //0: Left Accel
     //   Accel_x: -0.101g
@@ -389,7 +404,7 @@ int main(void)
 
        MAP_Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
        TIMER32_PERIODIC_MODE);
-       MAP_Timer32_setCount(TIMER32_0_BASE, 12000000);
+       MAP_Timer32_setCount(TIMER32_0_BASE, 1500000);
        MAP_Timer32_clearInterruptFlag(TIMER32_0_BASE);
        MAP_Timer32_enableInterrupt(TIMER32_0_BASE);
        MAP_Interrupt_enableInterrupt(INT_T32_INT1);
