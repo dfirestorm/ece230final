@@ -55,6 +55,7 @@
 #include <stdio.h>
 #include "lcd.h"
 #include "delays.h"
+#include <string.h>
 
 #define A2TIMER_PERIOD  30000  //drives servos at 50 Hz (period of 20 ms)
 //angle servo macros
@@ -70,7 +71,7 @@
 
 /* Global Variables */
 //state defining
-bool write = false;
+bool write = true;
 bool jsRead = false;
 int speedLimit = MAX_SPEED;
 int currentState = 0;
@@ -81,8 +82,28 @@ int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
 int servoSpeed = 2250;
-//int currentState = 0;
-//int dataState = 0;
+int16_t accel_xL, accel_yL, accel_zL;
+int16_t gyro_xL, gyro_yL, gyro_zL;
+
+int16_t accel_xR, accel_yR, accel_zR;
+int16_t gyro_xR, gyro_yR, gyro_zR;
+
+//i2C stuff
+#define SLAVE_0       0x68
+#define SLAVE_1       0x69
+
+#define NUM_OF_REC_BYTES    14
+#define ACCEL_BASE     0x3B
+#define GYRO_CONFIG     0x1B
+#define ACCEL_CONFIG    0x1C
+#define PWR_MGMT       0x6B
+
+/* Variables */
+const uint8_t TXData[] = { 0x04 };
+static uint8_t RXData[NUM_OF_REC_BYTES];
+static volatile uint32_t xferIndex;
+static volatile bool stopSent;
+bool currentSlave = true;
 
 //first: get servos responding to joystick correctly - done
 //second: get state0 working
@@ -117,6 +138,14 @@ Timer_A_UpModeConfig upConfigA1 = {
         TIMER_A_TAIE_INTERRUPT_DISABLE,         // Disable Timer interrupt
         TIMER_A_CCIE_CCR0_INTERRUPT_ENABLE,    // Enable CCR0 interrupt
         TIMER_A_DO_CLEAR                        // Clear value
+        };
+
+const eUSCI_I2C_MasterConfig i2cConfig = {
+EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
+        3000000,                                // SMCLK = 3MHz
+        EUSCI_B_I2C_SET_DATA_RATE_100KBPS,      // Desired I2C Clock of 100khz
+        0,                                      // No byte counter threshold
+        EUSCI_B_I2C_NO_AUTO_STOP                // No Autostop
         };
 
 //configures ADC and Timer A1, which controls sampling
@@ -206,94 +235,125 @@ void initializeLCD(){
     printChar(' ');
 }
 
-//void initializeI2C(){
-//    /* Select Port 1 for I2C - Set Pin 6, 7 to input Primary Module Function,
-//     *   (UCB0SIMO/UCB0SDA, UCB0SOMI/UCB0SCL).
-//     */
-//    MAP_GPIO_setAsPeripheralModuleFunctionInputPin(
-//            GPIO_PORT_P1,
-//            GPIO_PIN6 + GPIO_PIN7,
-//            GPIO_PRIMARY_MODULE_FUNCTION);
-//    stopSent = false;
-//    memset(RXData, 0x00, NUM_OF_REC_BYTES);
-//
-//    /* Initializing I2C Master to SMCLK at 100khz with no autostop */
-//    MAP_I2C_initMaster(EUSCI_B0_BASE, &i2cConfig);
-//
-//    /* Enable I2C Module to start operations */
-//    MAP_I2C_enableModule(EUSCI_B0_BASE);
-//    MAP_Interrupt_enableInterrupt(INT_EUSCIB0);
-//
-//    //configure Slave 0 (Left GY-521)
-//    /* Specify slave address for slave0 */
-//    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, PWR_MGMT);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_CONFIG);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b10000);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, GYRO_CONFIG);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b00001000);
-//
-//    //configure Slave 1 (Right GY-521)
-//    /* Specify slave address */
-//    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_1);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, PWR_MGMT);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_CONFIG);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b10000);
-//
-//    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
-//    /* Send Start, address frame, and the first byte of write. */
-//    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, GYRO_CONFIG);
-//    /* Send final byte of write, and Stop   */
-//    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b00001000);
-//
-//    //read from Slave 0 first
-//    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
-//}
+void initializeI2C(){
+    /* Select Port 1 for I2C - Set Pin 6, 7 to input Primary Module Function,
+     *   (UCB0SIMO/UCB0SDA, UCB0SOMI/UCB0SCL).
+     */
+    MAP_GPIO_setAsPeripheralModuleFunctionInputPin(
+            GPIO_PORT_P1,
+            GPIO_PIN6 + GPIO_PIN7,
+            GPIO_PRIMARY_MODULE_FUNCTION);
+    stopSent = false;
+    memset(RXData, 0x00, NUM_OF_REC_BYTES);
 
-//void normalState(){
-//    speedLimit = MAX_SPEED;
-//    //0: Left Accel
-//    //   Accel_x: -0.101g
-//    //1: Accel_y: -0.101g
-//    //   Accel_z:  1.111g
-//    //2: Left Gyro
-//    //   Gyro_x: 500.1*/s
-//    //3: Gyro_y: 500.1*/s
-//    //   Gyro_z: 500.1*/s
-//    //4: Right Accel
-//    //   Accel_x: -0.101g
-//    //5: Accel_x: -0.101g
-//    //   Accel_z:  1.111g
-//    //6: Right Gyro
-//    //   Gyro_x: 500.1*/s
-//    //7: Gyro_y: 500.1*/s
-//    //   Gyro_z: 500.1*/s
-//    //8: Temp: xx.x *C
-//    //
-//
-//}
+    /* Initializing I2C Master to SMCLK at 100khz with no autostop */
+    MAP_I2C_initMaster(EUSCI_B0_BASE, &i2cConfig);
+
+    /* Enable I2C Module to start operations */
+    MAP_I2C_enableModule(EUSCI_B0_BASE);
+    MAP_Interrupt_enableInterrupt(INT_EUSCIB0);
+
+    //configure Slave 0 (Left GY-521)
+    /* Specify slave address for slave0 */
+    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, PWR_MGMT);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_CONFIG);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b10000);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, GYRO_CONFIG);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b00001000);
+
+    //configure Slave 1 (Right GY-521)
+    /* Specify slave address */
+    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_1);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, PWR_MGMT);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_CONFIG);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b10000);
+
+    while (I2C_masterIsStopSent(EUSCI_B0_BASE));
+    /* Send Start, address frame, and the first byte of write. */
+    I2C_masterSendMultiByteStart(EUSCI_B0_BASE, GYRO_CONFIG);
+    /* Send final byte of write, and Stop   */
+    I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b00001000);
+
+    //read from Slave 0 first
+    MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
+}
+
+
+void normalState(){
+    speedLimit = MAX_SPEED;
+    //this is test code
+    if(write){
+        write = false;
+        char zLArray[5];
+        sprintf(zLArray, "%ld", accel_zR);
+        char zRArray[5];
+        sprintf(zRArray, "%ld", accel_zL);
+
+        commandInstruction(CLEAR_DISPLAY_MASK);
+        int i;
+        for(i = 0; i < 5; i++ ){
+            if(zLArray[i] != 0){
+            printChar(zLArray[i]);
+            }
+        }
+        commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+        for(i = 0; i < 5; i++ ){
+            if(zRArray[i] != 0){
+            printChar(zRArray[i]);
+            }
+        }
+
+        /* Send start and the first byte of the transmit buffer. */
+        MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+        /* Sent the first byte, now we need to initiate the read */
+        xferIndex = 0;
+        MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+        MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
+    //0: Left Accel
+    //   Accel_x: -0.101g
+    //1: Accel_y: -0.101g
+    //   Accel_z:  1.111g
+    //2: Left Gyro
+    //   Gyro_x: 500.1*/s
+    //3: Gyro_y: 500.1*/s
+    //   Gyro_z: 500.1*/s
+    //4: Right Accel
+    //   Accel_x: -0.101g
+    //5: Accel_x: -0.101g
+    //   Accel_z:  1.111g
+    //6: Right Gyro
+    //   Gyro_x: 500.1*/s
+    //7: Gyro_y: 500.1*/s
+    //   Gyro_z: 500.1*/s
+    //8: Temp: xx.x *C
+    //
+
+}
 
 int main(void)
 {
@@ -326,31 +386,40 @@ int main(void)
        initializeADC(); //configure ADC
        initializeServo();
        initializeLCD();
-//       intializeI2C();
+
+       MAP_Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
+       TIMER32_PERIODIC_MODE);
+       MAP_Timer32_setCount(TIMER32_0_BASE, 12000000);
+       MAP_Timer32_clearInterruptFlag(TIMER32_0_BASE);
+       MAP_Timer32_enableInterrupt(TIMER32_0_BASE);
+       MAP_Interrupt_enableInterrupt(INT_T32_INT1);
+       MAP_Timer32_startTimer(TIMER32_0_BASE, false);
+
+       initializeI2C();
 
 
     while(1)
     {
-//        /* Making sure the last transaction has been completely sent out */
-//        while (MAP_I2C_masterIsStopSent(EUSCI_B0_BASE));
-//
-//        if(currentSlave){
-//              accel_xL = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
-//              accel_yL = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
-//              accel_zL = (((uint16_t)RXData[4]) << 8) + (RXData[5]);
-//
-//              gyro_xL = (((uint16_t)RXData[8]) << 8) + (RXData[9]);
-//              gyro_yL = (((uint16_t)RXData[10]) << 8) + (RXData[11]);
-//              gyro_zL = (((uint16_t)RXData[12]) << 8) + (RXData[13]);
-//         } else{
-//              accel_xL = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
-//              accel_yL = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
-//              accel_zL = (((uint16_t)RXData[4]) << 8) + (RXData[5]);
-//
-//              gyro_x1 = (((uint16_t)RXData[8]) << 8) + (RXData[9]);
-//              gyro_y1 = (((uint16_t)RXData[10]) << 8) + (RXData[11]);
-//              gyro_z1 = (((uint16_t)RXData[12]) << 8) + (RXData[13]);
-//         }
+        /* Making sure the last transaction has been completely sent out */
+        while (MAP_I2C_masterIsStopSent(EUSCI_B0_BASE));
+
+        if(currentSlave){
+              accel_xL = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
+              accel_yL = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
+              accel_zL = (((uint16_t)RXData[4]) << 8) + (RXData[5]);
+
+              gyro_xL = (((uint16_t)RXData[8]) << 8) + (RXData[9]);
+              gyro_yL = (((uint16_t)RXData[10]) << 8) + (RXData[11]);
+              gyro_zL = (((uint16_t)RXData[12]) << 8) + (RXData[13]);
+         }else{
+              accel_xR = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
+              accel_yR = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
+              accel_zR = (((uint16_t)RXData[4]) << 8) + (RXData[5]);
+
+              gyro_xR = (((uint16_t)RXData[8]) << 8) + (RXData[9]);
+              gyro_yR = (((uint16_t)RXData[10]) << 8) + (RXData[11]);
+              gyro_zR = (((uint16_t)RXData[12]) << 8) + (RXData[13]);
+         }
 
        //joystick and servo control
         if(jsRead){
@@ -382,17 +451,21 @@ int main(void)
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
             }
+
         }
 
-//        if(currentState == 0){
-//            normalState();
-//        }else if(currentState == 1){
-//           // hotEngine();
-//        }else if(currentState == 2){
-//           // lowSpeed();
-//        }else{
-//            currentState = 0;
-//        }
+        if(currentState == 0){
+            normalState();
+        }else if(currentState == 1){
+           // hotEngine();
+        }else if(currentState == 2){
+           // lowSpeed();
+        }else{
+            currentState = 0;
+        }
+
+  //      MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+        //MAP_PCM_gotoLPM0InterruptSafe();
     }
 }
 
@@ -424,5 +497,60 @@ void ADC14_IRQHandler(void)
     if(ADC_INT3 & status){
         //temperature sensor stuff
     }
+
+}
+
+void EUSCIB0_IRQHandler(void)
+{
+    uint_fast16_t status;
+
+    status = MAP_I2C_getEnabledInterruptStatus(EUSCI_B0_BASE);
+    GPIO_toggleOutputOnPin(GPIO_PORT_P2, GPIO_PIN0);
+
+    /* Receives bytes into the receive buffer. If we have received all bytes,
+     * send a STOP condition */
+    if (status & EUSCI_B_I2C_RECEIVE_INTERRUPT0)
+    {
+
+        if (xferIndex == NUM_OF_REC_BYTES - 2)
+        {
+            MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_STOP_INTERRUPT);
+
+            /*
+             * Switch order so that stop is being set during reception of last
+             * byte read byte so that next byte can be read.
+             */
+            MAP_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
+            RXData[xferIndex++] = MAP_I2C_masterReceiveMultiByteNext(
+            EUSCI_B0_BASE);
+        }
+        else if (xferIndex < NUM_OF_REC_BYTES)
+        {
+            RXData[xferIndex++] = MAP_I2C_masterReceiveMultiByteNext(
+            EUSCI_B0_BASE);
+        }
+    }
+    else if (status & EUSCI_B_I2C_STOP_INTERRUPT)
+    {
+        MAP_Interrupt_disableSleepOnIsrExit();
+        MAP_I2C_disableInterrupt(EUSCI_B0_BASE,
+        EUSCI_B_I2C_STOP_INTERRUPT);
+    }
+
+    if(currentSlave == true){
+        currentSlave = false;
+        MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_1);
+    } else{
+        currentSlave = true;
+        MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
+    }
+}
+
+//triggers sampling and writing once per second
+void T32_INT1_IRQHandler(void)
+{
+    uint64_t status = Timer32_getInterruptStatus(TIMER32_0_BASE);
+    write = true;
+    MAP_Timer32_clearInterruptFlag(TIMER32_0_BASE);
 
 }
