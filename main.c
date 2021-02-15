@@ -64,7 +64,7 @@
 #define CENTER_ANGLE    2250
 //#define ANGLE_STEP      187
 
-//continuous servo macros
+//continuous servo macros min = 1 ms max = 2ms stopped = 1.5ms pulse width
 #define MAX_SPEED          3000
 #define NO_SPEED         2250
 #define MAX_CCW         1500
@@ -308,19 +308,33 @@ void normalState(){
     //this is test code
     if(write){
        write = false;
-    if(currentSlave){
-        commandInstruction(SET_CURSOR_MASK | LINE1_OFFSET);
-        char zLArray[5];
-        sprintf(zLArray, "%ld", accel_zL);
-        int i;
-        for(i = 0; i < 5; i++ ){
-            if(zLArray[i] != 0){
-            printChar(zLArray[i]);
+        if(currentSlave){
+            commandInstruction(SET_CURSOR_MASK | LINE1_OFFSET);
+            char zLArray[5];
+            sprintf(zLArray, "%ld", accel_zL);
+            int i;
+            for(i = 0; i < 5; i++ ){
+                if(zLArray[i] != 0){
+                printChar(zLArray[i]);
+                }
             }
-        }
-        printChar(' ');
-        printChar(' ');
+            printChar(' ');
+            printChar(' ');
 
+        }
+        else{
+            commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+            char zRArray[5];
+            sprintf(zRArray, "%ld", accel_zR);
+            int i;
+            for(i = 0; i < 5; i++ ){
+                if(zRArray[i] != 0){
+                printChar(zRArray[i]);
+                }
+            }
+            printChar(' ');
+            printChar(' ');
+        }
         /* Send start and the first byte of the transmit buffer. */
         MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
 
@@ -328,27 +342,6 @@ void normalState(){
         xferIndex = 0;
         MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
         MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
-    }else{
-        commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
-        char zRArray[5];
-        sprintf(zRArray, "%ld", accel_zR);
-        int i;
-        for(i = 0; i < 5; i++ ){
-            if(zRArray[i] != 0){
-            printChar(zRArray[i]);
-            }
-        }
-        printChar(' ');
-        printChar(' ');
-
-        /* Send start and the first byte of the transmit buffer. */
-        MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
-
-        /* Sent the first byte, now we need to initiate the read */
-        xferIndex = 0;
-        MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
-        MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
-    }
     }
     //0: Left Accel
     //   Accel_x: -0.101g
