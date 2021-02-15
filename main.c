@@ -309,29 +309,19 @@ void normalState(){
     if(write){
        write = false;
         if(currentSlave){
-            commandInstruction(SET_CURSOR_MASK | LINE1_OFFSET);
+            displayStart();
             char zLArray[5];
             sprintf(zLArray, "%ld", accel_zL);
-            int i;
-            for(i = 0; i < 5; i++ ){
-                if(zLArray[i] != 0){
-                printChar(zLArray[i]);
-                }
-            }
+            printString(zLArray, 5);
             printChar(' ');
             printChar(' ');
 
         }
         else{
-            commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+            displayLine2();
             char zRArray[5];
             sprintf(zRArray, "%ld", accel_zR);
-            int i;
-            for(i = 0; i < 5; i++ ){
-                if(zRArray[i] != 0){
-                printChar(zRArray[i]);
-                }
-            }
+            printString(zLArray, 5);
             printChar(' ');
             printChar(' ');
         }
