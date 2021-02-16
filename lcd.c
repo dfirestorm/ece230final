@@ -90,7 +90,7 @@ void commandInstruction(uint8_t command) {
 
 void commandInstruction4bit(uint8_t command){
     writeInstruction(CTRL_MODE, command);
-    delayMicroSec(SHORT_INSTR_DELAY);
+    delayMicroSec(1);
     writeInstruction(CTRL_MODE, command << 4);
 }
 /*!
@@ -102,7 +102,7 @@ void commandInstruction4bit(uint8_t command){
  */
 void dataInstruction(uint8_t data) {
     writeInstruction(DATA_MODE, data);
-    delayMicroSec(SHORT_INSTR_DELAY);
+    delayMicroSec(1);
     writeInstruction(DATA_MODE, data << 4);
 }
 
@@ -135,7 +135,9 @@ void printChar(char character) {
 void printString(char string[], int length){
     int i;
     for(i=0; i<length; i++){
+        if(string[i] != 0){
         printChar(string[i]);
+        }
     }
 }
 void clearScreen(){

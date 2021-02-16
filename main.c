@@ -82,6 +82,9 @@ int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
 int servoSpeed = 2250;
+int digitalTempValue = 0;
+float celsiusTempValue = 0;
+float fahrenheitTempValue = 0;
 int16_t accel_xL, accel_yL, accel_zL;
 int16_t gyro_xL, gyro_yL, gyro_zL;
 
@@ -211,7 +214,6 @@ void initializeADC(void){
           MAP_Interrupt_enableInterrupt(INT_ADC14);
           MAP_Interrupt_enableMaster();
 }
-
 void initializeServo(void){
     //configure pin 5.6 as output (angle servo pin)
     MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P5, GPIO_PIN6   ,
@@ -224,7 +226,7 @@ void initializeServo(void){
 }
 
 void initializeLCD(){
-    configLCD(GPIO_PORT_P6, GPIO_PIN1, GPIO_PORT_P6, GPIO_PIN0, GPIO_PORT_P4);
+    configLCD(GPIO_PORT_P6, GPIO_PIN1, GPIO_PORT_P6, GPIO_PIN4, GPIO_PORT_P4);
     initDelayTimer(CS_getMCLK());
     initLCD();
     printChar('h');
@@ -310,9 +312,9 @@ void normalState(){
        write = false;
         if(currentSlave){
             displayStart();
-            char zLArray[5];
-            sprintf(zLArray, "%ld", accel_zL);
-            printString(zLArray, 5);
+            char zLArray[8];
+            sprintf(zLArray, "% ld   ", accel_zL);
+            printString(zLArray, 8);
             printChar(' ');
             printChar(' ');
 
@@ -320,8 +322,8 @@ void normalState(){
         else{
             displayLine2();
             char zRArray[5];
-            sprintf(zRArray, "%ld", accel_zR);
-            printString(zLArray, 5);
+            sprintf(zRArray, "% ld", accel_zR);
+            printString(zRArray, 5);
             printChar(' ');
             printChar(' ');
         }
@@ -495,6 +497,9 @@ void ADC14_IRQHandler(void)
 
     if(ADC_INT3 & status){
         //temperature sensor stuff
+        digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
+        celsiusTempValue = 100 * (digitalTempValue * 3.3) / 16384;
+        fahrenheitTempValue = celsiusTempValue*(9/5) +32;
     }
 
 }
