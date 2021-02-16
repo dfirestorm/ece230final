@@ -127,7 +127,11 @@ extern void initLCD(void);
  *  \return None
  */
 extern void printChar(char character);
+extern void printString(char string[], int length);
 
+extern void clearScreen();
+extern void displayStart();
+extern void displayLine2();
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.
