@@ -82,6 +82,9 @@ int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
 int servoSpeed = 2250;
+int digitalTempValue = 0;
+float celsiusTempValue = 0;
+float fahrenheitTempValue = 0;
 int16_t accel_xL, accel_yL, accel_zL;
 int16_t gyro_xL, gyro_yL, gyro_zL;
 
@@ -309,19 +312,29 @@ void normalState(){
     if(write){
        write = false;
         if(currentSlave){
-            displayStart();
+            commandInstruction(SET_CURSOR_MASK | LINE1_OFFSET);
             char zLArray[5];
             sprintf(zLArray, "%ld", accel_zL);
-            printString(zLArray, 5);
+            int i;
+            for(i = 0; i < 5; i++ ){
+                if(zLArray[i] != 0){
+                printChar(zLArray[i]);
+                }
+            }
             printChar(' ');
             printChar(' ');
 
         }
         else{
-            displayLine2();
+            commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
             char zRArray[5];
             sprintf(zRArray, "%ld", accel_zR);
-            printString(zLArray, 5);
+            int i;
+            for(i = 0; i < 5; i++ ){
+                if(zRArray[i] != 0){
+                printChar(zRArray[i]);
+                }
+            }
             printChar(' ');
             printChar(' ');
         }
@@ -495,6 +508,9 @@ void ADC14_IRQHandler(void)
 
     if(ADC_INT3 & status){
         //temperature sensor stuff
+        digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
+        celsiusTempValue = 100 * (digitalTempValue * 3.3) / 16384;
+        fahrenheitTempValue = celsiusTempValue*(9/5) +32;
     }
 
 }
