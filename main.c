@@ -304,55 +304,182 @@ void initializeI2C(){
     MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
 }
 
+void initializeSwitches(){
+    MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P1, GPIO_PIN1);
+    MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, GPIO_PIN1);
+    MAP_GPIO_enableInterrupt(GPIO_PORT_P1, GPIO_PIN1);
+
+    MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P1, GPIO_PIN4);
+    MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, GPIO_PIN4);
+    MAP_GPIO_enableInterrupt(GPIO_PORT_P1, GPIO_PIN4);
+
+    MAP_Interrupt_enableInterrupt(INT_PORT1);
+}
+
+void printLAccelData(){
+    //this is test code
+    if(write){
+        write = false;
+           if(currentSlave){
+               displayStart();
+               char zLArray[8];
+               sprintf(zLArray, "% ld   ", accel_zL);
+               printString(zLArray, 8);
+               printChar(' ');
+               printChar(' ');
+               displayLine2();
+               char zRArray[5];
+               sprintf(zRArray, "% ld", accel_yL);
+               printString(zRArray, 5);
+               printChar(' ');
+               printChar(' ');
+
+           }
+
+           /* Send start and the first byte of the transmit buffer. */
+           MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+           /* Sent the first byte, now we need to initiate the read */
+           xferIndex = 0;
+           MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+           MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
+
+}
+
+void printLGyroData(){
+    if(write){
+        write = false;
+           if(currentSlave){
+               displayStart();
+               char zLArray[8];
+               sprintf(zLArray, "% ld   ", gyro_zL);
+               printString(zLArray, 8);
+               printChar(' ');
+               printChar(' ');
+               displayLine2();
+               char zRArray[5];
+               sprintf(zRArray, "% ld", gyro_yL);
+               printString(zRArray, 5);
+               printChar(' ');
+               printChar(' ');
+
+           }
+
+           /* Send start and the first byte of the transmit buffer. */
+           MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+           /* Sent the first byte, now we need to initiate the read */
+           xferIndex = 0;
+           MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+           MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
+
+}
+
+void printRAccelData(){
+    if(write){
+        write = false;
+           if(!currentSlave){
+               displayStart();
+               char zLArray[8];
+               sprintf(zLArray, "% ld   ", accel_zR);
+               printString(zLArray, 8);
+               printChar(' ');
+               printChar(' ');
+               displayLine2();
+               char zRArray[5];
+               sprintf(zRArray, "% ld", accel_yR);
+               printString(zRArray, 5);
+               printChar(' ');
+               printChar(' ');
+
+           }
+
+           /* Send start and the first byte of the transmit buffer. */
+           MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+           /* Sent the first byte, now we need to initiate the read */
+           xferIndex = 0;
+           MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+           MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
+
+}
+
+void printRGyroData(){
+    if(write){
+        write = false;
+           if(!currentSlave){
+               displayStart();
+               char zLArray[8];
+               sprintf(zLArray, "% ld   ", gyro_zR);
+               printString(zLArray, 8);
+               printChar(' ');
+               printChar(' ');
+               displayLine2();
+               char zRArray[5];
+               sprintf(zRArray, "% ld", gyro_yR);
+               printString(zRArray, 5);
+               printChar(' ');
+               printChar(' ');
+
+           }
+
+           /* Send start and the first byte of the transmit buffer. */
+           MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
+
+           /* Sent the first byte, now we need to initiate the read */
+           xferIndex = 0;
+           MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
+           MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    }
+
+}
+
+void printTempData(){
+    if(write){
+        clearScreen();
+        write = false;
+        printString("Temp: 85", 8);
+    }
+
+}
+
+void printServoData(){
+    if(write){
+        clearScreen();
+        write = false;
+        printString("Servo: 90", 9);
+    }
+
+}
+
 
 void normalState(){
     speedLimit = MAX_SPEED;
-    //this is test code
-    if(write){
-       write = false;
-        if(currentSlave){
-            displayStart();
-            char zLArray[8];
-            sprintf(zLArray, "% ld   ", accel_zL);
-            printString(zLArray, 8);
-            printChar(' ');
-            printChar(' ');
-
-        }
-        else{
-            displayLine2();
-            char zRArray[5];
-            sprintf(zRArray, "% ld", accel_zR);
-            printString(zRArray, 5);
-            printChar(' ');
-            printChar(' ');
-        }
-        /* Send start and the first byte of the transmit buffer. */
-        MAP_I2C_masterSendMultiByteStart(EUSCI_B0_BASE, ACCEL_BASE);
-
-        /* Sent the first byte, now we need to initiate the read */
-        xferIndex = 0;
-        MAP_I2C_masterReceiveStart(EUSCI_B0_BASE);
-        MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    switch(dataState){
+        case 0:
+            printLAccelData();
+            break;
+        case 1:
+            printLGyroData();
+            break;
+        case 2:
+            printRAccelData();
+            break;
+        case 3:
+            printRGyroData();
+            break;
+        case 4:
+            printTempData();
+            break;
+        case 5:
+            printServoData();
+            break;
+        default:
+            dataState = 0;
     }
-    //0: Left Accel
-    //   Accel_x: -0.101g
-    //1: Accel_y: -0.101g
-    //   Accel_z:  1.111g
-    //2: Left Gyro
-    //   Gyro_x: 500.1*/s
-    //3: Gyro_y: 500.1*/s
-    //   Gyro_z: 500.1*/s
-    //4: Right Accel
-    //   Accel_x: -0.101g
-    //5: Accel_x: -0.101g
-    //   Accel_z:  1.111g
-    //6: Right Gyro
-    //   Gyro_x: 500.1*/s
-    //7: Gyro_y: 500.1*/s
-    //   Gyro_z: 500.1*/s
-    //8: Temp: xx.x *C
-    //
 
 }
 
@@ -387,6 +514,7 @@ int main(void)
        initializeADC(); //configure ADC
        initializeServo();
        initializeLCD();
+       initializeSwitches();
 
        MAP_Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
        TIMER32_PERIODIC_MODE);
@@ -404,7 +532,7 @@ int main(void)
         /* Making sure the last transaction has been completely sent out */
         while (MAP_I2C_masterIsStopSent(EUSCI_B0_BASE));
 
-        if(currentSlave){
+        if(currentSlave==true){
               accel_xL = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
               accel_yL = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
               accel_zL = (((uint16_t)RXData[4]) << 8) + (RXData[5]);
@@ -556,5 +684,32 @@ void T32_INT1_IRQHandler(void)
     uint64_t status = Timer32_getInterruptStatus(TIMER32_0_BASE);
     write = true;
     MAP_Timer32_clearInterruptFlag(TIMER32_0_BASE);
+
+}
+
+void PORT1_IRQHandler(void)
+{
+    uint32_t status = MAP_GPIO_getEnabledInterruptStatus(GPIO_PORT_P1);
+    MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, status);
+
+    int i=0;
+    for(i =0; i < 15000; i++);
+
+    //change flags
+    if (status & GPIO_PIN1)
+    {
+        dataState--;
+        if(dataState<0){
+            dataState = 0;
+        }
+    }
+
+    if (status & GPIO_PIN4)
+    {
+        dataState++;
+        if(dataState > 5){
+            dataState ==5;
+        }
+    }
 
 }
