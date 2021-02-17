@@ -708,7 +708,7 @@ void PORT1_IRQHandler(void)
     {
         dataState++;
         if(dataState > 5){
-            dataState ==5;
+            dataState =5;
         }
     }
 
