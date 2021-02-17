@@ -82,7 +82,7 @@ bool write = true;
 bool jsRead = false;
 int speedLimit = MAX_SPEED;
 int currentState = 0;
-int dataState = 0;
+int dataState = 2;
 
 //data storage
 int joystickX = 0;

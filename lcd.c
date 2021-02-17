@@ -1,3 +1,9 @@
+/*
+ * lcd.c
+ *
+ *  Created on: Jan 22, 2021
+ *      Author: wilsonic
+ */
 /*!
  * lcd.c
  *
@@ -64,7 +70,7 @@ void instructionDelay(uint8_t mode, uint8_t instruction) {
  * \return None
  */
 void writeInstruction(uint8_t mode, uint8_t instruction) {
-    GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
+    GPIO_setOutputLowOnPin(DB_Port, 0xF0);
     if (mode == DATA_MODE) {
         GPIO_setOutputHighOnPin(RS_Port, RS_Pin);
     } else {
@@ -74,6 +80,13 @@ void writeInstruction(uint8_t mode, uint8_t instruction) {
     GPIO_setOutputHighOnPin(DB_Port, instruction);
     delayMicroSec(1);
     GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+    GPIO_setOutputLowOnPin(DB_Port, 0xF0);
+    delayMicroSec(1);
+    GPIO_setOutputHighOnPin(EN_Port, EN_Pin);
+    GPIO_setOutputHighOnPin(DB_Port, instruction << 4);
+    delayMicroSec(1);
+    GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+    GPIO_setOutputLowOnPin(DB_Port, 0xF0);
     instructionDelay(mode, instruction);
 }
 
@@ -88,11 +101,6 @@ void commandInstruction(uint8_t command) {
     writeInstruction(CTRL_MODE, command);
 }
 
-void commandInstruction4bit(uint8_t command){
-    writeInstruction(CTRL_MODE, command);
-    delayMicroSec(5);
-    writeInstruction(CTRL_MODE, command << 4);
-}
 /*!
  * Function to write data instruction to LCD.
  *
@@ -102,36 +110,35 @@ void commandInstruction4bit(uint8_t command){
  */
 void dataInstruction(uint8_t data) {
     writeInstruction(DATA_MODE, data);
-    delayMicroSec(5);
-    writeInstruction(DATA_MODE, data << 4);
 }
 
 void initLCD(void) {
-    // DONE complete command instructions for initialization
+    // TODO complete command instructions for initialization
     delayMilliSec(40);
-    commandInstruction(FUNCTION_SET_MASK | DL_FLAG_MASK);
+    commandInstruction(0b0011);
     delayMilliSec(5);
-    commandInstruction(FUNCTION_SET_MASK | DL_FLAG_MASK);
+    commandInstruction(0b0011);
     delayMicroSec(150);
-    commandInstruction(FUNCTION_SET_MASK | DL_FLAG_MASK);
+    commandInstruction(0b0011);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction(FUNCTION_SET_MASK);
+    commandInstruction(0b0010);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction4bit(FUNCTION_SET_MASK | N_FLAG_MASK);
+    commandInstruction(0b00101000);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction4bit(DISPLAY_CTRL_MASK);
+    commandInstruction(0b00001000);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction4bit(CLEAR_DISPLAY_MASK);
+    commandInstruction(0b00000001);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction4bit(ENTRY_MODE_MASK | ID_FLAG_MASK);
+    commandInstruction(0b00000110);
     // Initialization complete, turn ON display
     delayMicroSec(LONG_INSTR_DELAY);
-    commandInstruction4bit(DISPLAY_CTRL_MASK | D_FLAG_MASK);
+    commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK);
 }
 
 void printChar(char character) {
     dataInstruction(character);
 }
+
 void printString(char string[], int length){
     int i;
     for(i=0; i<length; i++){
@@ -143,17 +150,20 @@ void printString(char string[], int length){
         }
     }
 }
+
 void clearScreen(){
-    commandInstruction4bit(CLEAR_DISPLAY_MASK);
+    commandInstruction(CLEAR_DISPLAY_MASK);
     delayMicroSec(SHORT_INSTR_DELAY);
-    commandInstruction4bit(ENTRY_MODE_MASK | ID_FLAG_MASK);
+    commandInstruction(ENTRY_MODE_MASK | ID_FLAG_MASK);
     // Initialization complete, turn ON display
     delayMicroSec(LONG_INSTR_DELAY);
-    commandInstruction4bit(DISPLAY_CTRL_MASK | D_FLAG_MASK);
+    commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK);
 }
+
 void displayStart(){
-    commandInstruction4bit(0x02);
+    commandInstruction(0x02);
 }
 void displayLine2(){
-    commandInstruction4bit(0xc0);
+    commandInstruction(0xc0);
 }
+
