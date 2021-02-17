@@ -57,6 +57,13 @@
 #include "delays.h"
 #include <string.h>
 
+//RGB definitions
+#define RGB_PORT                                                    GPIO_PORT_P2
+#define RGB_RED_PIN                                                 GPIO_PIN0
+#define RGB_GREEN_PIN                                               GPIO_PIN1
+#define RGB_BLUE_PIN                                                GPIO_PIN2
+#define RGBmask                                                     (0x0007)
+
 #define A2TIMER_PERIOD  30000  //drives servos at 50 Hz (period of 20 ms)
 //angle servo macros
 #define MIN_ANGLE       1125
@@ -110,7 +117,10 @@ bool currentSlave = true;
 
 //first: get servos responding to joystick correctly - done
 //second: get I2C reading different values - done
-//third: get LCD printing data in units desired.
+//third: get data state changes working - done
+//TODO: -get normal state changes working
+//      -get data printing in correct units
+//      -write code for LED PWMs
 
 //TA2: controls anglular servo pulse width
 Timer_A_PWMConfig pwmConfigA2AServo =
@@ -151,6 +161,43 @@ EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
         0,                                      // No byte counter threshold
         EUSCI_B_I2C_NO_AUTO_STOP                // No Autostop
         };
+
+const uint8_t port_mapping[] = {
+//Port P2: remaps P2.0 and P2.1 to TA0CCR1 and TA1CCR1, respectively
+        PMAP_TA0CCR0A, PMAP_TA0CCR1A, PMAP_TA0CCR2A, PMAP_NONE, PMAP_NONE, PMAP_NONE,
+        PMAP_NONE,
+        PMAP_NONE };
+
+//green LED timer
+Timer_A_PWMConfig pwmConfigA01green =
+{
+        TIMER_A_CLOCKSOURCE_SMCLK,
+        TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
+        3000,                             //signal at 1 kHz
+        TIMER_A_CAPTURECOMPARE_REGISTER_1,
+        TIMER_A_OUTPUTMODE_RESET_SET,
+        3000                              //100% green
+};
+
+Timer_A_PWMConfig pwmConfigA00red =
+{
+        TIMER_A_CLOCKSOURCE_SMCLK,
+        TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
+        3000,                             //signal at 1 kHz
+        TIMER_A_CAPTURECOMPARE_REGISTER_0,
+        TIMER_A_OUTPUTMODE_RESET_SET,
+        0                                       //0% red
+};
+
+Timer_A_PWMConfig pwmConfigA02blue =
+{
+        TIMER_A_CLOCKSOURCE_SMCLK,
+        TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
+        3000,                             //signal at 1 kHz
+        TIMER_A_CAPTURECOMPARE_REGISTER_2,
+        TIMER_A_OUTPUTMODE_RESET_SET,
+        0                                       //0% blue
+};
 
 //configures ADC and Timer A1, which controls sampling
 void initializeADC(void){
@@ -314,6 +361,24 @@ void initializeSwitches(){
     MAP_GPIO_enableInterrupt(GPIO_PORT_P1, GPIO_PIN4);
 
     MAP_Interrupt_enableInterrupt(INT_PORT1);
+}
+
+void initializeRGBLED(){
+    MAP_PMAP_configurePorts((const uint8_t *) port_mapping, PMAP_P2MAP, 2,
+            PMAP_DISABLE_RECONFIGURATION);
+
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2,
+                    GPIO_PIN2, GPIO_PRIMARY_MODULE_FUNCTION);
+
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2,
+            GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
+
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2,
+                GPIO_PIN0, GPIO_PRIMARY_MODULE_FUNCTION);
+
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA01green);
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA00red);
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02blue);
 }
 
 void printLAccelData(){
@@ -515,6 +580,7 @@ int main(void)
        initializeServo();
        initializeLCD();
        initializeSwitches();
+       initializeRGBLED();
 
        MAP_Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
        TIMER32_PERIODIC_MODE);
