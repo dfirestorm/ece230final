@@ -90,7 +90,7 @@ void commandInstruction(uint8_t command) {
 
 void commandInstruction4bit(uint8_t command){
     writeInstruction(CTRL_MODE, command);
-    delayMicroSec(1);
+    delayMicroSec(5);
     writeInstruction(CTRL_MODE, command << 4);
 }
 /*!
@@ -102,7 +102,7 @@ void commandInstruction4bit(uint8_t command){
  */
 void dataInstruction(uint8_t data) {
     writeInstruction(DATA_MODE, data);
-    delayMicroSec(1);
+    delayMicroSec(5);
     writeInstruction(DATA_MODE, data << 4);
 }
 

@@ -386,19 +386,18 @@ void printLAccelData(){
     if(write){
         write = false;
            if(currentSlave){
-               displayStart();
-               char zLArray[8];
-               sprintf(zLArray, "% ld   ", accel_zL);
-               printString(zLArray, 8);
-               printChar(' ');
-               printChar(' ');
-               displayLine2();
-               char zRArray[5];
-               sprintf(zRArray, "% ld", accel_yL);
-               printString(zRArray, 5);
-               printChar(' ');
-               printChar(' ');
-
+                clearScreen();
+                displayStart();
+                char aLArray[16];
+                double xLPrint = (accel_xL *8.0) / 32768;
+                sprintf(aLArray, "L Accel x:% 4.2fg", xLPrint);
+                printString(aLArray, 16);
+                displayLine2();
+                char aLArray2[16];
+                double yLPrint = (accel_yL *8.0) / 32768;
+                double zLPrint = (accel_zL *8.0) / 32768;
+                sprintf(aLArray2, "y:% 4.2fgz:% 4.2fg ", yLPrint, zLPrint);
+                printString(aLArray2, 16);
            }
 
            /* Send start and the first byte of the transmit buffer. */
@@ -416,18 +415,19 @@ void printLGyroData(){
     if(write){
         write = false;
            if(currentSlave){
-               displayStart();
-               char zLArray[8];
-               sprintf(zLArray, "% ld   ", gyro_zL);
-               printString(zLArray, 8);
-               printChar(' ');
-               printChar(' ');
-               displayLine2();
-               char zRArray[5];
-               sprintf(zRArray, "% ld", gyro_yL);
-               printString(zRArray, 5);
-               printChar(' ');
-               printChar(' ');
+                clearScreen();
+                displayStart();
+                char gLArray[16];
+                double xLPrint = (gyro_xL *500.0) / 32768;
+                sprintf(gLArray, "LGyro°/s x:% 5.1f", xLPrint);
+                gLArray[5] = (char)0xdf;
+                printString(gLArray, 16);
+                displayLine2();
+                char gLArray2[16];
+                double yLPrint = (gyro_yL *500.0) / 32768;
+                double zLPrint = (gyro_zL *500.0) / 32768;
+                sprintf(gLArray2, " y:% 5.1f z:% 5.1f", yLPrint, zLPrint);
+                printString(gLArray2, 16);
 
            }
 
@@ -446,19 +446,18 @@ void printRAccelData(){
     if(write){
         write = false;
            if(!currentSlave){
-               displayStart();
-               char zLArray[8];
-               sprintf(zLArray, "% ld   ", accel_zR);
-               printString(zLArray, 8);
-               printChar(' ');
-               printChar(' ');
-               displayLine2();
-               char zRArray[5];
-               sprintf(zRArray, "% ld", accel_yR);
-               printString(zRArray, 5);
-               printChar(' ');
-               printChar(' ');
-
+                clearScreen();
+                displayStart();
+                char aRArray[16];
+                double xRPrint = (accel_xR *8.0) / 32768;
+                sprintf(aRArray, "R Accel x:% 4.2fg", xRPrint);
+                printString(aRArray, 16);
+                displayLine2();
+                char aRArray2[16];
+                double yRPrint = (accel_yR *8.0) / 32768;
+                double zRPrint = (accel_zR *8.0) / 32768;
+                sprintf(aRArray2, "y:% 4.2fgz:% 4.2fg ", yRPrint, zRPrint);
+                printString(aRArray2, 16);
            }
 
            /* Send start and the first byte of the transmit buffer. */
@@ -476,18 +475,19 @@ void printRGyroData(){
     if(write){
         write = false;
            if(!currentSlave){
-               displayStart();
-               char zLArray[8];
-               sprintf(zLArray, "% ld   ", gyro_zR);
-               printString(zLArray, 8);
-               printChar(' ');
-               printChar(' ');
-               displayLine2();
-               char zRArray[5];
-               sprintf(zRArray, "% ld", gyro_yR);
-               printString(zRArray, 5);
-               printChar(' ');
-               printChar(' ');
+                clearScreen();
+                displayStart();
+                char gRArray[16];
+                double xRPrint = (gyro_xR *500.0) / 32768;
+                sprintf(gRArray, "RGyro°/s x:% 5.1f", xRPrint);
+                gRArray[5] = (char)0xdf;
+                printString(gRArray, 16);
+                displayLine2();
+                char gRArray2[16];
+                double yRPrint = (gyro_yR *500.0) / 32768;
+                double zRPrint = (gyro_zR *500.0) / 32768;
+                sprintf(gRArray2, " y:% 5.1f z:% 5.1f", yRPrint, zRPrint);
+                printString(gRArray2, 16);
 
            }
 
@@ -506,7 +506,16 @@ void printTempData(){
     if(write){
         clearScreen();
         write = false;
-        printString("Temp: 85", 8);
+        displayStart();
+        char tempArray[16];
+        sprintf(tempArray, "Temp: % 4.1f°F", fahrenheitTempValue);
+        tempArray[11] = (char)0xdf;
+        printString(tempArray, 16);
+        displayLine2();
+        char tempArray2[16];
+        sprintf(tempArray2, "Celsius: %4.1f°C", celsiusTempValue);
+        tempArray2[13] = (char)0xdf;
+        printString(tempArray2, 16);
     }
 
 }
@@ -515,7 +524,18 @@ void printServoData(){
     if(write){
         clearScreen();
         write = false;
-        printString("Servo: 90", 9);
+        displayStart();
+        char servoArray[16];
+        double servoValue = 180*(servoAngle - MIN_ANGLE*1.0) / (MAX_ANGLE - MIN_ANGLE*1.0);
+        sprintf(servoArray, "Rudder: %5.1f ", servoValue);
+        servoArray[13] = (char)0xdf;
+        printString(servoArray, 16);
+        displayLine2();
+        char servoArray2[16];
+        double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+        sprintf(servoArray2, "Throttle: %5.1f ", motorValue);
+        servoArray2[15] = '%';
+        printString(servoArray2, 16);
     }
 
 }
@@ -693,7 +713,7 @@ void ADC14_IRQHandler(void)
         //temperature sensor stuff
         digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
         celsiusTempValue = 100 * (digitalTempValue * 3.3) / 16384;
-        fahrenheitTempValue = celsiusTempValue*(9/5) +32;
+        fahrenheitTempValue = (celsiusTempValue*(9.0/5)) +32;
     }
 
 }
