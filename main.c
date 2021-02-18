@@ -122,6 +122,12 @@ bool currentSlave = true;
 //      -get data printing in correct units
 //      -write code for LED PWMs
 
+//TODO FOR DONALD
+//      -make switch case less gross (PWM)
+//      -make "TOO HOT" occur at 87
+//      -change "setCompareValue" to "pwmConfig.dutyCycle = x"
+
+
 //TA2: controls anglular servo pulse width
 Timer_A_PWMConfig pwmConfigA2AServo =
 {
@@ -530,8 +536,8 @@ void printServoData(){
         displayStart();
         char servoArray[16];
         double servoValue = 180*(servoAngle - MIN_ANGLE*1.0) / (MAX_ANGLE - MIN_ANGLE*1.0);
-        sprintf(servoArray, "Rudder: %5.1f ", servoValue);
-        servoArray[13] = (char)0xdf;
+        sprintf(servoArray, "Rudder: %5.1f    ", servoValue);
+        servoArray[16] = (char)0xdf;
         printString(servoArray, 16);
         displayLine2();
         char servoArray2[16];
@@ -592,6 +598,7 @@ void handleErrorLEDs(){
             break;
         default:
             Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
+            redduty = 0;
             break;
     }
 
@@ -667,9 +674,89 @@ void normalState(){
             break;
         default:
             dataState = 0;
+            break;
     }
 
     handleErrorLEDs();
+
+    double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+    if(motorValue < 10){
+        currentState = 2;
+    } else if(fahrenheitTempValue >=90){
+        currentState = 1;
+    } else{
+        currentState = 0;
+    }
+
+}
+
+void hotEngineData(){
+    if(write){
+        clearScreen();
+        write = false;
+        displayStart();
+        char tempArray[16];
+        sprintf(tempArray, "TOO HOT: % 4.1f°F", fahrenheitTempValue);
+        tempArray[14] = (char)0xdf;
+        printString(tempArray, 16);
+        displayLine2();
+        char servoArray2[16];
+        double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+        sprintf(servoArray2, "Throttle: %5.1f ", motorValue);
+        servoArray2[15] = '%';
+        printString(servoArray2, 16);
+    }
+
+}
+
+void hotEngine(){
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
+    speedLimit = 2813;  //75% of max speed
+    hotEngineData();
+
+    //implement state 2
+    double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+    if(motorValue < 10){
+        currentState = 2;
+    }
+    else if(fahrenheitTempValue < 84){
+        currentState = 0;
+    }else{
+        currentState = 1;
+    }
+}
+
+void lowSpeedData(){
+    if(write){
+         clearScreen();
+         write = false;
+         displayStart();
+         printString("STALL WARNING!   ", 16);
+         displayLine2();
+         char servoArray2[16];
+         double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+         sprintf(servoArray2, "Throttle: %5.1f ", motorValue);
+         servoArray2[15] = '%';
+         printString(servoArray2, 16);
+    }
+}
+
+void lowSpeed(){
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
+    speedLimit = MAX_SPEED;
+    lowSpeedData();
+
+    double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+    if(motorValue > 10){
+        if(fahrenheitTempValue >= 87){
+            currentState = 1;
+        }else{
+            currentState = 0;
+        }
+    }else{
+        currentState = 2;
+    }
+
 
 }
 
@@ -774,12 +861,26 @@ int main(void)
 
         }
 
+//        switch(currentState){
+//            case 0:
+//                normalState();
+//                break;
+//            case 1:
+//                hotEngine();
+//                break;
+//            case 2:
+//                //lowSpeed();
+//                break;
+//            default:
+//                currentState = 0;
+//                break;
+//        }
         if(currentState == 0){
             normalState();
         }else if(currentState == 1){
-           // hotEngine();
+            hotEngine();
         }else if(currentState == 2){
-           // lowSpeed();
+            lowSpeed();
         }else{
             currentState = 0;
         }
