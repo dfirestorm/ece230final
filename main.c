@@ -511,12 +511,12 @@ void printTempData(){
         write = false;
         displayStart();
         char tempArray[16];
-        sprintf(tempArray, "Temp: % 4.1f°F", fahrenheitTempValue);
+        sprintf(tempArray, "Temp: % 4.1f°F   ", fahrenheitTempValue);
         tempArray[11] = (char)0xdf;
         printString(tempArray, 16);
         displayLine2();
         char tempArray2[16];
-        sprintf(tempArray2, "Celsius: %4.1f°C", celsiusTempValue);
+        sprintf(tempArray2, "Celsius: %4.1f°C ", celsiusTempValue);
         tempArray2[13] = (char)0xdf;
         printString(tempArray2, 16);
     }
