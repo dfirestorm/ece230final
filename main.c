@@ -82,7 +82,7 @@ bool write = true;
 bool jsRead = false;
 int speedLimit = MAX_SPEED;
 int currentState = 0;
-int dataState = 2;
+int dataState = 0;
 
 //data storage
 int joystickX = 0;
@@ -164,40 +164,43 @@ EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
 
 const uint8_t port_mapping[] = {
 //Port P2: remaps P2.0 and P2.1 to TA0CCR1 and TA1CCR1, respectively
-        PMAP_TA0CCR0A, PMAP_TA0CCR1A, PMAP_TA0CCR2A, PMAP_NONE, PMAP_NONE, PMAP_NONE,
-        PMAP_NONE,
-        PMAP_NONE };
+        PMAP_TA0CCR4A, PMAP_TA0CCR2A, PMAP_TA0CCR3A, PMAP_NONE, PMAP_NONE, PMAP_NONE,
+        PMAP_NONE, PMAP_NONE };
 
 //green LED timer
-Timer_A_PWMConfig pwmConfigA01green =
+Timer_A_PWMConfig pwmConfigA02green =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
-        TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
+        TIMER_A_CLOCKSOURCE_DIVIDER_2,          //3/1 = 3Mhz
         3000,                             //signal at 1 kHz
-        TIMER_A_CAPTURECOMPARE_REGISTER_1,
+        TIMER_A_CAPTURECOMPARE_REGISTER_2,
         TIMER_A_OUTPUTMODE_RESET_SET,
         3000                              //100% green
 };
 
-Timer_A_PWMConfig pwmConfigA00red =
+Timer_A_PWMConfig pwmConfigA04red =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
         TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
         3000,                             //signal at 1 kHz
-        TIMER_A_CAPTURECOMPARE_REGISTER_0,
+        TIMER_A_CAPTURECOMPARE_REGISTER_4,
         TIMER_A_OUTPUTMODE_RESET_SET,
         0                                       //0% red
 };
 
-Timer_A_PWMConfig pwmConfigA02blue =
+Timer_A_PWMConfig pwmConfigA03blue =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
         TIMER_A_CLOCKSOURCE_DIVIDER_1,          //3/1 = 3Mhz
         3000,                             //signal at 1 kHz
-        TIMER_A_CAPTURECOMPARE_REGISTER_2,
+        TIMER_A_CAPTURECOMPARE_REGISTER_3,
         TIMER_A_OUTPUTMODE_RESET_SET,
         0                                       //0% blue
 };
+
+int errorLEDArray[11] = {0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000};
+int greenLEDArray[11] = {3000, 2700, 2400, 2100, 1800, 1500, 1200, 900, 600, 300, 0};
+
 
 //configures ADC and Timer A1, which controls sampling
 void initializeADC(void){
@@ -376,9 +379,9 @@ void initializeRGBLED(){
     MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2,
                 GPIO_PIN0, GPIO_PRIMARY_MODULE_FUNCTION);
 
-    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA01green);
-    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA00red);
-    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02blue);
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
+    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
 }
 
 void printLAccelData(){
@@ -540,6 +543,106 @@ void printServoData(){
 
 }
 
+void handleErrorLEDs(){
+    int blueduty = 0;
+    int redduty = 0;
+    int greenduty = 0;
+
+    int temp = (int)fahrenheitTempValue;
+    switch(temp){
+        case 81:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 300);
+            redduty = 300;
+            break;
+        case 82:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 600);
+            redduty = 600;
+            break;
+        case 83:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 900);
+            redduty = 900;
+            break;
+        case 84:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1200);
+            redduty = 1200;
+            break;
+        case 85:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1500);
+            redduty = 1500;
+            break;
+        case 86:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1800);
+            redduty = 1800;
+            break;
+        case 87:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2100);
+            redduty = 2100;
+            break;
+        case 88:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2400);
+            redduty = 2400;
+            break;
+        case 89:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2700);
+            redduty = 2700;
+            break;
+        case 90:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
+            redduty = 3000;
+            break;
+        default:
+            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
+            break;
+    }
+
+
+    double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
+    if(motorValue >= 28){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
+        blueduty = 0;
+    } else if(motorValue < 28 && motorValue >= 26){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 300);
+        blueduty = 300;
+    } else if(motorValue < 26 && motorValue >= 24){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 600);
+        blueduty = 600;
+    } else if(motorValue < 24 && motorValue >= 22){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 900);
+        blueduty = 900;
+    } else if(motorValue < 22 && motorValue >= 20){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1200);
+        blueduty = 1200;
+    } else if(motorValue < 20 && motorValue >= 18){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1500);
+        blueduty = 1500;
+    } else if(motorValue < 18 && motorValue >= 16){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1800);
+        blueduty = 1800;
+    } else if(motorValue < 16 && motorValue >= 14){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2100);
+        blueduty = 2100;
+    } else if(motorValue < 14 && motorValue >= 12){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2400);
+        blueduty = 2400;
+    } else if(motorValue < 12 && motorValue >= 10){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2700);
+        blueduty = 2700;
+    } else if(motorValue < 10){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
+        blueduty = 3000;
+    }
+
+
+
+    if(blueduty >= redduty){
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-blueduty);
+    }else{
+        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-redduty);
+    }
+
+
+}
+
 
 void normalState(){
     speedLimit = MAX_SPEED;
@@ -565,6 +668,8 @@ void normalState(){
         default:
             dataState = 0;
     }
+
+    handleErrorLEDs();
 
 }
 
@@ -786,7 +891,7 @@ void PORT1_IRQHandler(void)
     {
         dataState--;
         if(dataState<0){
-            dataState = 0;
+            dataState = 5;
         }
     }
 
@@ -794,7 +899,7 @@ void PORT1_IRQHandler(void)
     {
         dataState++;
         if(dataState > 5){
-            dataState =5;
+            dataState =0;
         }
     }
 
