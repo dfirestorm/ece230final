@@ -554,90 +554,103 @@ void handleErrorLEDs(){
     int redduty = 0;
     int greenduty = 0;
 
-    int temp = (int)fahrenheitTempValue;
-    switch(temp){
-        case 81:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 300);
-            redduty = 300;
-            break;
-        case 82:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 600);
-            redduty = 600;
-            break;
-        case 83:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 900);
-            redduty = 900;
-            break;
-        case 84:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1200);
-            redduty = 1200;
-            break;
-        case 85:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1500);
-            redduty = 1500;
-            break;
-        case 86:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1800);
-            redduty = 1800;
-            break;
-        case 87:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2100);
-            redduty = 2100;
-            break;
-        case 88:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2400);
-            redduty = 2400;
-            break;
-        case 89:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2700);
-            redduty = 2700;
-            break;
-        case 90:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
-            redduty = 3000;
-            break;
-        default:
-            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
-            redduty = 0;
-            break;
+    int temp = ((int)fahrenheitTempValue - 80);
+    redduty = 300*(temp*10/6);
+    if(redduty < 0){
+        redduty = 0;
+    }
+    else if(redduty > 3000){
+        redduty = 3000;
+    }
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, redduty);
+//
+//    switch(temp){
+//        case 81:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 300);
+//            redduty = 300;
+//            break;
+//        case 82:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 600);
+//            redduty = 600;
+//            break;
+//        case 83:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 900);
+//            redduty = 900;
+//            break;
+//        case 84:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1200);
+//            redduty = 1200;
+//            break;
+//        case 85:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1500);
+//            redduty = 1500;
+//            break;
+//        case 86:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 1800);
+//            redduty = 1800;
+//            break;
+//        case 87:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2100);
+//            redduty = 2100;
+//            break;
+//        case 88:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2400);
+//            redduty = 2400;
+//            break;
+//        case 89:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 2700);
+//            redduty = 2700;
+//            break;
+//        case 90:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
+//            redduty = 3000;
+//            break;
+//        default:
+//            Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
+//            redduty = 0;
+//            break;
     }
 
 
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
-    if(motorValue >= 28){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
+   if(motorValue >= 28){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
         blueduty = 0;
-    } else if(motorValue < 28 && motorValue >= 26){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 300);
-        blueduty = 300;
-    } else if(motorValue < 26 && motorValue >= 24){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 600);
-        blueduty = 600;
-    } else if(motorValue < 24 && motorValue >= 22){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 900);
-        blueduty = 900;
-    } else if(motorValue < 22 && motorValue >= 20){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1200);
-        blueduty = 1200;
-    } else if(motorValue < 20 && motorValue >= 18){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1500);
-        blueduty = 1500;
-    } else if(motorValue < 18 && motorValue >= 16){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1800);
-        blueduty = 1800;
-    } else if(motorValue < 16 && motorValue >= 14){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2100);
-        blueduty = 2100;
-    } else if(motorValue < 14 && motorValue >= 12){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2400);
-        blueduty = 2400;
-    } else if(motorValue < 12 && motorValue >= 10){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2700);
-        blueduty = 2700;
+//    } else if(motorValue < 28 && motorValue >= 26){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 300);
+//        blueduty = 300;
+//    } else if(motorValue < 26 && motorValue >= 24){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 600);
+//        blueduty = 600;
+//    } else if(motorValue < 24 && motorValue >= 22){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 900);
+//        blueduty = 900;
+//    } else if(motorValue < 22 && motorValue >= 20){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1200);
+//        blueduty = 1200;
+//    } else if(motorValue < 20 && motorValue >= 18){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1500);
+//        blueduty = 1500;
+//    } else if(motorValue < 18 && motorValue >= 16){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 1800);
+//        blueduty = 1800;
+//    } else if(motorValue < 16 && motorValue >= 14){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2100);
+//        blueduty = 2100;
+//    } else if(motorValue < 14 && motorValue >= 12){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2400);
+//        blueduty = 2400;
+//    } else if(motorValue < 12 && motorValue >= 10){
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 2700);
+//        blueduty = 2700;
     } else if(motorValue < 10){
-        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
+//        Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
         blueduty = 3000;
+    } else {
+        motorValue = (motorValue - 10)/2;
+        blueduty = (int) (300 * (10 - motorValue));
     }
+   Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, blueduty);
 
 
 
@@ -682,7 +695,7 @@ void normalState(){
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue < 10){
         currentState = 2;
-    } else if(fahrenheitTempValue >=90){
+    } else if(fahrenheitTempValue >=86){
         currentState = 1;
     } else{
         currentState = 0;
@@ -729,7 +742,7 @@ void hotEngine(){
     if(motorValue < 10){
         currentState = 2;
     }
-    else if(fahrenheitTempValue < 84){
+    else if(fahrenheitTempValue < 86){
         currentState = 0;
     }else{
         currentState = 1;
@@ -760,7 +773,7 @@ void lowSpeed(){
 
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue > 10){
-        if(fahrenheitTempValue >= 87){
+        if(fahrenheitTempValue >= 86){
             currentState = 1;
         }else{
             currentState = 0;
