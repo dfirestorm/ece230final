@@ -85,10 +85,14 @@ int currentState = 0;
 int dataState = 0;
 
 //data storage
+#define hotTemp 88
 int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
 int servoSpeed = 2250;
+int prevTemp0 = 0;
+int prevTemp1 = 0;
+int prevTemp2 = 0;
 int digitalTempValue = 0;
 float celsiusTempValue = 0;
 float fahrenheitTempValue = 0;
@@ -537,7 +541,7 @@ void printServoData(){
         char servoArray[16];
         double servoValue = 180*(servoAngle - MIN_ANGLE*1.0) / (MAX_ANGLE - MIN_ANGLE*1.0);
         sprintf(servoArray, "Rudder: %5.1f    ", servoValue);
-        servoArray[16] = (char)0xdf;
+        servoArray[14] = (char)0xdf;
         printString(servoArray, 16);
         displayLine2();
         char servoArray2[16];
@@ -554,8 +558,8 @@ void handleErrorLEDs(){
     int redduty = 0;
     int greenduty = 0;
 
-    int temp = ((int)fahrenheitTempValue - 80);
-    redduty = 300*(temp*10/6);
+    double temp = (fahrenheitTempValue - 83);
+    redduty =(int)(3000*(temp/5));
     if(redduty < 0){
         redduty = 0;
     }
@@ -577,13 +581,20 @@ void handleErrorLEDs(){
     }
    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, blueduty);
 
+//   pwmConfigA03blue.dutyCycle = blueduty;
+//   pwmConfigA04red.dutyCycle = redduty;
 
 
     if(blueduty >= redduty){
+//        pwmConfigA02green.dutyCycle = 3000 - blueduty;
         Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-blueduty);
     }else{
+//        pwmConfigA02green.dutyCycle = 3000 - redduty;
         Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-redduty);
     }
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
 
 
 }
@@ -591,6 +602,7 @@ void handleErrorLEDs(){
 
 void normalState(){
     speedLimit = MAX_SPEED;
+
     switch(dataState){
         case 0:
             printLAccelData();
@@ -614,13 +626,13 @@ void normalState(){
             dataState = 0;
             break;
     }
-
-    handleErrorLEDs();
-
+    if(jsRead){
+        handleErrorLEDs();
+    }
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue < 10){
         currentState = 2;
-    } else if(fahrenheitTempValue >=86){
+    } else if(fahrenheitTempValue >=hotTemp){
         currentState = 1;
     } else{
         currentState = 0;
@@ -653,11 +665,19 @@ void hotEngine(){
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
+//    pwmConfigA02green.dutyCycle = 0;
+//    pwmConfigA03blue.dutyCycle = 0;
+//    pwmConfigA04red.dutyCycle = 3000;
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
     speedLimit = 2813;  //75% of max speed
 
     if(servoSpeed > speedLimit){
         servoSpeed = speedLimit;
     }
+//    pwmConfigA2CServo.dutyCycle = servoSpeed;
+//    MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2CServo);
     Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
 
     hotEngineData();
@@ -667,7 +687,7 @@ void hotEngine(){
     if(motorValue < 10){
         currentState = 2;
     }
-    else if(fahrenheitTempValue < 86){
+    else if(fahrenheitTempValue < hotTemp){
         currentState = 0;
     }else{
         currentState = 1;
@@ -693,12 +713,19 @@ void lowSpeed(){
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
+//    pwmConfigA02green.dutyCycle = 0;
+//    pwmConfigA03blue.dutyCycle = 3000;
+//    pwmConfigA04red.dutyCycle = 0;
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
+//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
+
     speedLimit = MAX_SPEED;
     lowSpeedData();
 
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue > 10){
-        if(fahrenheitTempValue >= 86){
+        if(fahrenheitTempValue >= hotTemp){
             currentState = 1;
         }else{
             currentState = 0;
@@ -779,6 +806,15 @@ int main(void)
          }
 
        //joystick and servo control
+        if(currentState == 0){
+            normalState();
+        }else if(currentState == 1){
+            hotEngine();
+        }else if(currentState == 2){
+            lowSpeed();
+        }else{
+            currentState = 0;
+        }
         if(jsRead){
             jsRead=false;
             if(joystickX > 16000){
@@ -786,6 +822,7 @@ int main(void)
                 if(servoAngle < MIN_ANGLE){
                     servoAngle = MIN_ANGLE;
                 }
+
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_1, servoAngle);
             } else if(joystickX < 50){
                 servoAngle +=25;
@@ -794,6 +831,8 @@ int main(void)
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_1, servoAngle);
             }
+//            pwmConfigA2AServo.dutyCycle = servoAngle;
+//            MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2AServo);
 
             if(joystickY < 50){
                 servoSpeed +=1;
@@ -808,8 +847,12 @@ int main(void)
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
             }
-
+//            pwmConfigA2CServo.dutyCycle = servoSpeed;
+//            MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2CServo);
         }
+
+
+
 
 //        switch(currentState){
 //            case 0:
@@ -825,15 +868,7 @@ int main(void)
 //                currentState = 0;
 //                break;
 //        }
-        if(currentState == 0){
-            normalState();
-        }else if(currentState == 1){
-            hotEngine();
-        }else if(currentState == 2){
-            lowSpeed();
-        }else{
-            currentState = 0;
-        }
+
 
   //      MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
         //MAP_PCM_gotoLPM0InterruptSafe();
@@ -867,7 +902,10 @@ void ADC14_IRQHandler(void)
 
     if(ADC_INT3 & status){
         //temperature sensor stuff
-        digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
+        prevTemp2 = prevTemp1;
+        prevTemp1 = prevTemp0;
+        prevTemp0 = MAP_ADC14_getResult(ADC_MEM3);
+        digitalTempValue = (prevTemp0 + prevTemp1 + prevTemp2)/3;
         celsiusTempValue = 100 * (digitalTempValue * 3.3) / 16384;
         fahrenheitTempValue = (celsiusTempValue*(9.0/5)) +32;
     }
