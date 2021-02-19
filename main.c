@@ -124,7 +124,7 @@ bool currentSlave = true;
 
 //TODO FOR DONALD
 //      -make switch case less gross (PWM)
-//      -make "TOO HOT" occur at 87
+//      -make "TOO HOT" occur at >=88 and stop < 88
 //      -change "setCompareValue" to "pwmConfig.dutyCycle = x"
 
 
@@ -710,8 +710,18 @@ void hotEngineData(){
 }
 
 void hotEngine(){
+
+
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
     speedLimit = 2813;  //75% of max speed
+
+    if(servoSpeed > speedLimit){
+        servoSpeed = speedLimit;
+    }
+    Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
+
     hotEngineData();
 
     //implement state 2
@@ -743,6 +753,8 @@ void lowSpeedData(){
 
 void lowSpeed(){
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
     speedLimit = MAX_SPEED;
     lowSpeedData();
 
