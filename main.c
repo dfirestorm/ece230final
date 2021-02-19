@@ -539,8 +539,8 @@ void printServoData(){
         write = false;
         displayStart();
         char servoArray[16];
-        double servoValue = 180*(servoAngle - MIN_ANGLE*1.0) / (MAX_ANGLE - MIN_ANGLE*1.0);
-        sprintf(servoArray, "Rudder: %5.1f    ", servoValue);
+        double servoValue = -90*(servoAngle - CENTER_ANGLE*1.0) / (CENTER_ANGLE - MIN_ANGLE*1.0);
+        sprintf(servoArray, "Rudder: % 5.1f    ", servoValue);
         servoArray[14] = (char)0xdf;
         printString(servoArray, 16);
         displayLine2();
@@ -972,8 +972,8 @@ void PORT1_IRQHandler(void)
     uint32_t status = MAP_GPIO_getEnabledInterruptStatus(GPIO_PORT_P1);
     MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, status);
 
-    int i=0;
-    for(i =0; i < 15000; i++);
+//    int i=0;
+//    for(i =0; i < 15000; i++);
 
     //change flags
     if (status & GPIO_PIN1)
