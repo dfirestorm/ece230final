@@ -90,12 +90,12 @@ int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
 int servoSpeed = 2250;
-int prevTemp0 = 0;
-int prevTemp1 = 0;
-int prevTemp2 = 0;
-int digitalTempValue = 0;
-float celsiusTempValue = 0;
-float fahrenheitTempValue = 0;
+long prevTemp0 = 0;
+long prevTemp1 = 0;
+long prevTemp2 = 0;
+long digitalTempValue = 0;
+double celsiusTempValue = 0;
+double fahrenheitTempValue = 0;
 int16_t accel_xL, accel_yL, accel_zL;
 int16_t gyro_xL, gyro_yL, gyro_zL;
 
@@ -138,7 +138,7 @@ Timer_A_PWMConfig pwmConfigA2AServo =
         TIMER_A_CLOCKSOURCE_SMCLK,
         TIMER_A_CLOCKSOURCE_DIVIDER_2,          //3/2 = 1.5 MHz
         A2TIMER_PERIOD,                         //signal at 50 Hz
-        TIMER_A_CAPTURECOMPARE_REGISTER_1,
+        TIMER_A_CAPTURECOMPARE_REGISTER_4,
         TIMER_A_OUTPUTMODE_RESET_SET,
         CENTER_ANGLE                            //starts at 0 degrees
 };
@@ -245,14 +245,11 @@ void initializeADC(void){
         MAP_ADC14_configureMultiSequenceMode(ADC_MEM3, ADC_MEM5, true);
         // MAP_ADC14_configureSingleSampleMode(ADC_MEM15, true);
         MAP_ADC14_configureConversionMemory(ADC_MEM5, ADC_VREFPOS_AVCC_VREFNEG_VSS,
-        ADC_INPUT_A5,
-                                            false);
+        ADC_INPUT_A5, false);
         MAP_ADC14_configureConversionMemory(ADC_MEM4, ADC_VREFPOS_AVCC_VREFNEG_VSS,
-        ADC_INPUT_A4,
-                                            false);
+        ADC_INPUT_A4, false);
         MAP_ADC14_configureConversionMemory(ADC_MEM3, ADC_VREFPOS_AVCC_VREFNEG_VSS,
-                ADC_INPUT_A3,
-                                                    false);
+                ADC_INPUT_A3, false);
 
         /* Configuring Sample Timer */
         MAP_ADC14_enableSampleTimer(ADC_MANUAL_ITERATION);
@@ -275,8 +272,8 @@ void initializeADC(void){
           MAP_Interrupt_enableMaster();
 }
 void initializeServo(void){
-    //configure pin 5.6 as output (angle servo pin)
-    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P5, GPIO_PIN6   ,
+    //configure pin 6.7 as output (angle servo pin)
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P6, GPIO_PIN7   ,
                GPIO_PRIMARY_MODULE_FUNCTION);
     MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P6, GPIO_PIN6   ,
                GPIO_PRIMARY_MODULE_FUNCTION);
@@ -823,13 +820,13 @@ int main(void)
                     servoAngle = MIN_ANGLE;
                 }
 
-                Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_1, servoAngle);
+                Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, servoAngle);
             } else if(joystickX < 50){
                 servoAngle +=25;
                 if(servoAngle > MAX_ANGLE){
                     servoAngle = MAX_ANGLE;
                 }
-                Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_1, servoAngle);
+                Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, servoAngle);
             }
 //            pwmConfigA2AServo.dutyCycle = servoAngle;
 //            MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2AServo);
@@ -906,7 +903,8 @@ void ADC14_IRQHandler(void)
         prevTemp1 = prevTemp0;
         prevTemp0 = MAP_ADC14_getResult(ADC_MEM3);
         digitalTempValue = (prevTemp0 + prevTemp1 + prevTemp2)/3;
-        celsiusTempValue = 100 * (digitalTempValue * 3.3) / 16384;
+//        digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
+        celsiusTempValue = 100 * (digitalTempValue * 3.7) / 16384; //3.7 V for error correction since we're on the bottom end of the ADC's range
         fahrenheitTempValue = (celsiusTempValue*(9.0/5)) +32;
     }
 
