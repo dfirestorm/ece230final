@@ -1,51 +1,41 @@
-/* --COPYRIGHT--,BSD
- * Copyright (c) 2017, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * --/COPYRIGHT--*/
-/******************************************************************************
- * MSP432 Empty Project
- *
- * Description: An empty project that uses DriverLib
- *
- *                MSP432P401
- *             ------------------
- *         /|\|                  |
- *          | |                  |
- *          --|RST               |
- *            |                  |
- *            |                  |
- *            |                  |
- *            |                  |
- *            |                  |
- * Author: 
-*******************************************************************************/
+/*
+ ECE230 Capstone Project
+ Author: Isabel Wilson and Donald Hau
+ Date: 2-13-21
+ Description:
+
+ This C program seeks to emulate the cockpit and instrumentation of an airplane. A joystick can be used to control two
+ servo motors simulating the engine and rudder of the plane. There are a multitude of sensors that read data and print to
+ the LCD screen, which can be toggled via press of S1 and S2. The system may also take action if it determines that
+ the sensor data is at unsafe levels.
+
+ It includes 3 states:
+ Normal State:
+     Temp < 92 deg F and Servo Speed >= 10%
+     System Reads data from all sensors and displays it to LCD screen
+     RGB LED color is dependent on servo ( % blue) and temp data ( % red)
+
+ Overheated Engine State
+     Temp >= 92 and Servo Speed >= 10%
+     System reads data from temperature sensor, joystick and servos
+     Temperature data and servo speed is displayed to LCD and servo speed is limited to 75%
+     RGB LED is 100% red
+
+ Stall Warning State
+     Servo Speed < 10%
+     System reads from temperature sensor, servos and joystick
+     Servo speed is displayed to LCD
+     RGB LED is 100% blue
+
+ Sensors and Actuators Used:
+     -Joystick                  -LCD Display
+     -GY-521 Module x2          -LM35 Temperature Sensor
+     -Built-in RGB LED          -SG90 Angular Servo
+     -FS5103R Continous Servo   -S1 and S2 push buttons
+
+ Last-revised: 2-21-21
+*/
+
 /* DriverLib Includes */
 #include <ti/devices/msp432p4xx/driverlib/driverlib.h>
 
@@ -69,7 +59,7 @@
 #define MIN_ANGLE       1125
 #define MAX_ANGLE       3375
 #define CENTER_ANGLE    2250
-//#define ANGLE_STEP      187
+
 
 //continuous servo macros min = 1 ms max = 2ms stopped = 1.5ms pulse width
 #define MAX_SPEED          3000
@@ -102,7 +92,7 @@ int16_t gyro_xL, gyro_yL, gyro_zL;
 int16_t accel_xR, accel_yR, accel_zR;
 int16_t gyro_xR, gyro_yR, gyro_zR;
 
-//i2C stuff
+//I2C Macros
 #define SLAVE_0       0x68
 #define SLAVE_1       0x69
 
@@ -112,27 +102,15 @@ int16_t gyro_xR, gyro_yR, gyro_zR;
 #define ACCEL_CONFIG    0x1C
 #define PWR_MGMT       0x6B
 
-/* Variables */
+/*I2C Variables */
 const uint8_t TXData[] = { 0x04 };
 static uint8_t RXData[NUM_OF_REC_BYTES];
 static volatile uint32_t xferIndex;
 static volatile bool stopSent;
 bool currentSlave = true;
 
-//first: get servos responding to joystick correctly - done
-//second: get I2C reading different values - done
-//third: get data state changes working - done
-//TODO: -get normal state changes working
-//      -get data printing in correct units
-//      -write code for LED PWMs
 
-//TODO FOR DONALD
-//      -make switch case less gross (PWM)
-//      -make "TOO HOT" occur at >=88 and stop < 88
-//      -change "setCompareValue" to "pwmConfig.dutyCycle = x"
-
-
-//TA2: controls anglular servo pulse width
+//controls anglular servo pulse width
 Timer_A_PWMConfig pwmConfigA2AServo =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
@@ -146,7 +124,7 @@ Timer_A_PWMConfig pwmConfigA2AServo =
 //controls continuous servo pulse width
 Timer_A_PWMConfig pwmConfigA2CServo =
 {
-        TIMER_A_CLOCKSOURCE_SMCLK,
+        TIMER_A_CLOCKSOURCE_SMCLK,              //3 MHz
         TIMER_A_CLOCKSOURCE_DIVIDER_2,          //3/2 = 1.5 MHz
         A2TIMER_PERIOD,                         //signal at 50 Hz
         TIMER_A_CAPTURECOMPARE_REGISTER_3,
@@ -154,18 +132,18 @@ Timer_A_PWMConfig pwmConfigA2CServo =
         CENTER_ANGLE                            //starts at 0 speed
 };
 
-//TA1: 50 ms timer
+//TA1: 100 ms timer
 Timer_A_UpModeConfig upConfigA1 = {
         TIMER_A_CLOCKSOURCE_SMCLK,              // SMCLK Clock Source (3MHz)
         TIMER_A_CLOCKSOURCE_DIVIDER_4,          // SMCLK/4 = 75000 Hz
-        7500,                                   // 50 ms
+        7500,                                   // 100 ms
         TIMER_A_TAIE_INTERRUPT_DISABLE,         // Disable Timer interrupt
         TIMER_A_CCIE_CCR0_INTERRUPT_ENABLE,    // Enable CCR0 interrupt
         TIMER_A_DO_CLEAR                        // Clear value
         };
 
 const eUSCI_I2C_MasterConfig i2cConfig = {
-EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
+        EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
         3000000,                                // SMCLK = 3MHz
         EUSCI_B_I2C_SET_DATA_RATE_100KBPS,      // Desired I2C Clock of 100khz
         0,                                      // No byte counter threshold
@@ -173,11 +151,11 @@ EUSCI_B_I2C_CLOCKSOURCE_SMCLK,          // SMCLK Clock Source
         };
 
 const uint8_t port_mapping[] = {
-//Port P2: remaps P2.0 and P2.1 to TA0CCR1 and TA1CCR1, respectively
+//Port P2: remaps P2.0, P2.1, and P2.2 TA0CCR4, TA0CCR2, and TA0CCR3 respectively
         PMAP_TA0CCR4A, PMAP_TA0CCR2A, PMAP_TA0CCR3A, PMAP_NONE, PMAP_NONE, PMAP_NONE,
         PMAP_NONE, PMAP_NONE };
 
-//green LED timer
+//green LED pwm config
 Timer_A_PWMConfig pwmConfigA02green =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
@@ -188,6 +166,7 @@ Timer_A_PWMConfig pwmConfigA02green =
         3000                              //100% green
 };
 
+//red LED pwm config
 Timer_A_PWMConfig pwmConfigA04red =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
@@ -198,6 +177,7 @@ Timer_A_PWMConfig pwmConfigA04red =
         0                                       //0% red
 };
 
+//blue LED pwm config
 Timer_A_PWMConfig pwmConfigA03blue =
 {
         TIMER_A_CLOCKSOURCE_SMCLK,
@@ -208,11 +188,8 @@ Timer_A_PWMConfig pwmConfigA03blue =
         0                                       //0% blue
 };
 
-int errorLEDArray[11] = {0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000};
-int greenLEDArray[11] = {3000, 2700, 2400, 2100, 1800, 1500, 1200, 900, 600, 300, 0};
 
-
-//configures ADC and Timer A1, which controls sampling
+//configures ADC and Timer A1, which controls the sample rate of the ADC
 void initializeADC(void){
     /* Setting Flash wait state */
         MAP_FlashCtl_setWaitState(FLASH_BANK0, 1);
@@ -271,10 +248,14 @@ void initializeADC(void){
           MAP_Interrupt_enableInterrupt(INT_ADC14);
           MAP_Interrupt_enableMaster();
 }
+
+//configures servo GPIO pins and generates PWMs on TA2CCR3 and TA2CCR4, which control the pulse width of the
+//continuous servo and the angular servo, respectively
 void initializeServo(void){
     //configure pin 6.7 as output (angle servo pin)
     MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P6, GPIO_PIN7   ,
                GPIO_PRIMARY_MODULE_FUNCTION);
+    //configure pin 6.6 as output (continuous servo pin)
     MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P6, GPIO_PIN6   ,
                GPIO_PRIMARY_MODULE_FUNCTION);
 
@@ -282,6 +263,7 @@ void initializeServo(void){
     MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2CServo);
 }
 
+//configures LCD in 4 bit mode and prints "howdy!"
 void initializeLCD(){
     configLCD(GPIO_PORT_P6, GPIO_PIN1, GPIO_PORT_P6, GPIO_PIN4, GPIO_PORT_P4);
     initDelayTimer(CS_getMCLK());
@@ -295,6 +277,7 @@ void initializeLCD(){
     printChar(' ');
 }
 
+//initializes I2C module and prepares GY-521 modules to send data
 void initializeI2C(){
     /* Select Port 1 for I2C - Set Pin 6, 7 to input Primary Module Function,
      *   (UCB0SIMO/UCB0SDA, UCB0SOMI/UCB0SCL).
@@ -313,7 +296,7 @@ void initializeI2C(){
     MAP_I2C_enableModule(EUSCI_B0_BASE);
     MAP_Interrupt_enableInterrupt(INT_EUSCIB0);
 
-    //configure Slave 0 (Left GY-521)
+    //configure Slave 0 (Right GY-521)
     /* Specify slave address for slave0 */
     MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
 
@@ -335,7 +318,7 @@ void initializeI2C(){
     /* Send final byte of write, and Stop   */
     I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, 0b00001000);
 
-    //configure Slave 1 (Right GY-521)
+    //configure Slave 1 (Left GY-521)
     /* Specify slave address */
     MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_1);
 
@@ -361,6 +344,7 @@ void initializeI2C(){
     MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_0);
 }
 
+//initialize P1.1 and 1.4 (switches 1 and 2) as inputs and enable interrupts
 void initializeSwitches(){
     MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P1, GPIO_PIN1);
     MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, GPIO_PIN1);
@@ -373,6 +357,7 @@ void initializeSwitches(){
     MAP_Interrupt_enableInterrupt(INT_PORT1);
 }
 
+//Initialize RGB LED with port-mapped PWMs
 void initializeRGBLED(){
     MAP_PMAP_configurePorts((const uint8_t *) port_mapping, PMAP_P2MAP, 2,
             PMAP_DISABLE_RECONFIGURATION);
@@ -391,8 +376,8 @@ void initializeRGBLED(){
     MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
 }
 
+//print accelerometer data from the left GY-521 Module to the LCD screen
 void printLAccelData(){
-    //this is test code
     if(write){
         write = false;
            if(currentSlave){
@@ -421,6 +406,7 @@ void printLAccelData(){
 
 }
 
+//print gyroscope data from Left GY-521 to LCD screen
 void printLGyroData(){
     if(write){
         write = false;
@@ -452,6 +438,7 @@ void printLGyroData(){
 
 }
 
+//print accelerometer data from right GY-521 to LCD screen
 void printRAccelData(){
     if(write){
         write = false;
@@ -481,6 +468,7 @@ void printRAccelData(){
 
 }
 
+//print gyroscope data from right GY-521 to LCD screen
 void printRGyroData(){
     if(write){
         write = false;
@@ -512,6 +500,7 @@ void printRGyroData(){
 
 }
 
+//prints 3 point average of temperature data to LCD screen in Celsius and Fahrenheit
 void printTempData(){
     if(write){
         clearScreen();
@@ -530,6 +519,7 @@ void printTempData(){
 
 }
 
+//prints angular servo angle and percentage of max continuous servo speed to LCD
 void printServoData(){
     if(write){
         clearScreen();
@@ -550,11 +540,14 @@ void printServoData(){
 
 }
 
+//changes RGB LED from green to red as temperature increases from 87 to 92
+//changes RGB LED from green to blue as servo speed falls from 30% to 10%
 void handleErrorLEDs(){
     int blueduty = 0;
     int redduty = 0;
     int greenduty = 0;
 
+    //changes red LED brightness based on temp value
     double temp = (fahrenheitTempValue - 87);
     redduty =(int)(3000*(temp/5));
     if(redduty < 0){
@@ -565,8 +558,7 @@ void handleErrorLEDs(){
     }
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, redduty);
 
-
-
+    //changes blue LED brightness based on continous servo speed
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
    if(motorValue >= 28){
         blueduty = 0;
@@ -578,28 +570,21 @@ void handleErrorLEDs(){
     }
    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, blueduty);
 
-//   pwmConfigA03blue.dutyCycle = blueduty;
-//   pwmConfigA04red.dutyCycle = redduty;
-
-
+   //changes green LED brightness based on whichever other LED is more bright
     if(blueduty >= redduty){
-//        pwmConfigA02green.dutyCycle = 3000 - blueduty;
         Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-blueduty);
     }else{
-//        pwmConfigA02green.dutyCycle = 3000 - redduty;
         Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 3000-redduty);
     }
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
-
 
 }
 
-
+//"Normal State" The program prints data to the screen at the discretion of the pilot and
+//RGB LEDs change color based on data
 void normalState(){
     speedLimit = MAX_SPEED;
 
+    //state machine which determines what data is currently displayed
     switch(dataState){
         case 0:
             printLAccelData();
@@ -623,9 +608,13 @@ void normalState(){
             dataState = 0;
             break;
     }
+
+    //LED pwms update every 100 ms
     if(jsRead){
         handleErrorLEDs();
     }
+
+    //state transitions
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue < 10){
         currentState = 2;
@@ -637,6 +626,7 @@ void normalState(){
 
 }
 
+//prints temperature and continuous servo speed to LCD screen
 void hotEngineData(){
     if(write){
         clearScreen();
@@ -656,30 +646,24 @@ void hotEngineData(){
 
 }
 
+//"Engine Overheating State" The program displays the temperature and continuous servo speed
+//the continuous servo is limited to 75% and the RGB LED is red
 void hotEngine(){
-
-
-    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 3000); //100% red
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 0);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
-//    pwmConfigA02green.dutyCycle = 0;
-//    pwmConfigA03blue.dutyCycle = 0;
-//    pwmConfigA04red.dutyCycle = 3000;
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
+
     speedLimit = 2813;  //75% of max speed
 
+    //set speed to 75% if above
     if(servoSpeed > speedLimit){
         servoSpeed = speedLimit;
     }
-//    pwmConfigA2CServo.dutyCycle = servoSpeed;
-//    MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2CServo);
-    Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
+    Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed); //set speed to 75% if above
 
     hotEngineData();
 
-    //implement state 2
+    //state transitions
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue < 10){
         currentState = 2;
@@ -691,6 +675,7 @@ void hotEngine(){
     }
 }
 
+//prints "STALL WARNING! and the continuous servo speed
 void lowSpeedData(){
     if(write){
          clearScreen();
@@ -706,20 +691,17 @@ void lowSpeedData(){
     }
 }
 
+//"Stall Warning State" sets RGB LED to blue and displays continuous servo speed
+//this state takes priority over "Overheated Engine State"
 void lowSpeed(){
-    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000);
+    Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, 3000); //100% blue
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, 0);
     Timer_A_setCompareValue(TIMER_A0_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_2, 0);
-//    pwmConfigA02green.dutyCycle = 0;
-//    pwmConfigA03blue.dutyCycle = 3000;
-//    pwmConfigA04red.dutyCycle = 0;
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA02green);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA03blue);
-//    MAP_Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfigA04red);
 
     speedLimit = MAX_SPEED;
     lowSpeedData();
 
+    //state transitions
     double motorValue = 100* (servoSpeed - NO_SPEED*1.0) / (MAX_SPEED - NO_SPEED*1.0);
     if(motorValue > 10){
         if(fahrenheitTempValue >= hotTemp){
@@ -739,7 +721,7 @@ int main(void)
     /* Stop Watchdog  */
     MAP_WDT_A_holdTimer();
 
-    /*Configure Fancy Clock */
+    /*Configure HFXT Clock */
        MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(
                   GPIO_PORT_PJ,
                   GPIO_PIN3 | GPIO_PIN2,
@@ -760,14 +742,13 @@ int main(void)
        MAP_CS_initClockSignal(CS_MCLK, CS_HFXTCLK_SELECT, CS_CLOCK_DIVIDER_16);
        MAP_CS_initClockSignal(CS_SMCLK, CS_HFXTCLK_SELECT, CS_CLOCK_DIVIDER_16);
 
-       //Configure LCD Display
-
        initializeADC(); //configure ADC
        initializeServo();
        initializeLCD();
        initializeSwitches();
        initializeRGBLED();
 
+       //Initialize Timer32 with a period of 0.5s
        MAP_Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
        TIMER32_PERIODIC_MODE);
        MAP_Timer32_setCount(TIMER32_0_BASE, 1500000);
@@ -784,6 +765,7 @@ int main(void)
         /* Making sure the last transaction has been completely sent out */
         while (MAP_I2C_masterIsStopSent(EUSCI_B0_BASE));
 
+        //store data from whichever GY-521 module has been sampled most recently
         if(currentSlave==true){
               accel_xL = (((uint16_t)RXData[0]) << 8) + (RXData[1]);
               accel_yL = (((uint16_t)RXData[2]) << 8) + (RXData[3]);
@@ -802,7 +784,7 @@ int main(void)
               gyro_zR = (((uint16_t)RXData[12]) << 8) + (RXData[13]);
          }
 
-       //joystick and servo control
+        //calls state functions based on what state we are in (currentState)
         if(currentState == 0){
             normalState();
         }else if(currentState == 1){
@@ -812,66 +794,46 @@ int main(void)
         }else{
             currentState = 0;
         }
+
+        //joystick and servo control
         if(jsRead){
             jsRead=false;
-            if(joystickX > 16000){
+            if(joystickX > 16000){ //move servo right as joystick is pushed right
                 servoAngle -=25;
                 if(servoAngle < MIN_ANGLE){
                     servoAngle = MIN_ANGLE;
                 }
-
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, servoAngle);
-            } else if(joystickX < 50){
+
+            } else if(joystickX < 50){ //move servo left as joystick is pushed left
                 servoAngle +=25;
                 if(servoAngle > MAX_ANGLE){
                     servoAngle = MAX_ANGLE;
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_4, servoAngle);
             }
-//            pwmConfigA2AServo.dutyCycle = servoAngle;
-//            MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2AServo);
 
-            if(joystickY < 50){
+
+            if(joystickY < 50){ //increase servo speed as joystick is pushed forward
                 servoSpeed +=1;
                 if(servoSpeed > speedLimit){
                     servoSpeed = speedLimit;
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
-            } else if(joystickY > 16000){
+            } else if(joystickY > 16000){ //decrease servo speed as joystick is pushed backward
                 servoSpeed -=1;
                 if(servoSpeed < NO_SPEED){
                     servoSpeed = NO_SPEED;
                 }
                 Timer_A_setCompareValue(TIMER_A2_BASE, TIMER_A_CAPTURECOMPARE_REGISTER_3, servoSpeed);
             }
-//            pwmConfigA2CServo.dutyCycle = servoSpeed;
-//            MAP_Timer_A_generatePWM(TIMER_A2_BASE, &pwmConfigA2CServo);
+
         }
 
-
-
-
-//        switch(currentState){
-//            case 0:
-//                normalState();
-//                break;
-//            case 1:
-//                hotEngine();
-//                break;
-//            case 2:
-//                //lowSpeed();
-//                break;
-//            default:
-//                currentState = 0;
-//                break;
-//        }
-
-
-  //      MAP_I2C_enableInterrupt(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
-        //MAP_PCM_gotoLPM0InterruptSafe();
     }
 }
 
+//TimerA1 interrupt. Occurs every 100 ms. Controls ADC sampling rate and joystick read rate
 void TA1_0_IRQHandler(void)
 {
     jsRead = true;
@@ -880,6 +842,7 @@ void TA1_0_IRQHandler(void)
     TIMER_A_CAPTURECOMPARE_REGISTER_0);
 }
 
+//Analog to Digital Converter interrupt. Stores the digital value of joystick x and y and temperature of temp sensor
 void ADC14_IRQHandler(void)
 {
     uint64_t status = MAP_ADC14_getEnabledInterruptStatus();
@@ -888,17 +851,15 @@ void ADC14_IRQHandler(void)
     if (ADC_INT5 & status)
     {
         joystickX = MAP_ADC14_getResult(ADC_MEM5);
-       // voltPotResult15 = (digiPotResult15 * 3.3) / 16384;
     }
 
     if (ADC_INT4 & status)
     {
         joystickY = MAP_ADC14_getResult(ADC_MEM4);
-
     }
 
     if(ADC_INT3 & status){
-        //temperature sensor stuff
+        //Store most recent three temperature samples and average them
         prevTemp2 = prevTemp1;
         prevTemp1 = prevTemp0;
         prevTemp0 = MAP_ADC14_getResult(ADC_MEM3);
@@ -909,6 +870,7 @@ void ADC14_IRQHandler(void)
 
 }
 
+//I2C Interrupt Handler receives data from active GY-521 module
 void EUSCIB0_IRQHandler(void)
 {
     uint_fast16_t status;
@@ -946,6 +908,7 @@ void EUSCIB0_IRQHandler(void)
         EUSCI_B_I2C_STOP_INTERRUPT);
     }
 
+    //toggles which GY-521 module to read from
     if(currentSlave == true){
         currentSlave = false;
         MAP_I2C_setSlaveAddress(EUSCI_B0_BASE, SLAVE_1);
@@ -964,15 +927,16 @@ void T32_INT1_IRQHandler(void)
 
 }
 
+//interrupt triggers when S1 or S2 is pressed
 void PORT1_IRQHandler(void)
 {
     uint32_t status = MAP_GPIO_getEnabledInterruptStatus(GPIO_PORT_P1);
     MAP_GPIO_clearInterruptFlag(GPIO_PORT_P1, status);
 
-//    int i=0;
-//    for(i =0; i < 15000; i++);
+    int i=0;
+    for(i =0; i < 1500; i++);
 
-    //change flags
+    //if S1 is pressed display previous LCD data
     if (status & GPIO_PIN1)
     {
         dataState--;
@@ -981,6 +945,7 @@ void PORT1_IRQHandler(void)
         }
     }
 
+    //if S2 is pressed, display next LCD data
     if (status & GPIO_PIN4)
     {
         dataState++;
