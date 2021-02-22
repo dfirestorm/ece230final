@@ -903,7 +903,6 @@ void ADC14_IRQHandler(void)
         prevTemp1 = prevTemp0;
         prevTemp0 = MAP_ADC14_getResult(ADC_MEM3);
         digitalTempValue = (prevTemp0 + prevTemp1 + prevTemp2)/3;
-//        digitalTempValue = MAP_ADC14_getResult(ADC_MEM3);
         celsiusTempValue = 100 * (digitalTempValue * 3.7) / 16384; //3.7 V for error correction since we're on the bottom end of the ADC's range
         fahrenheitTempValue = (celsiusTempValue*(9.0/5)) +32;
     }
