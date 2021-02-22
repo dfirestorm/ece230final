@@ -85,7 +85,7 @@ int currentState = 0;
 int dataState = 0;
 
 //data storage
-#define hotTemp 88
+#define hotTemp 92
 int joystickX = 0;
 int joystickY = 0;
 int servoAngle = 2250;
@@ -555,7 +555,7 @@ void handleErrorLEDs(){
     int redduty = 0;
     int greenduty = 0;
 
-    double temp = (fahrenheitTempValue - 83);
+    double temp = (fahrenheitTempValue - 87);
     redduty =(int)(3000*(temp/5));
     if(redduty < 0){
         redduty = 0;
