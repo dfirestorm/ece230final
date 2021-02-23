@@ -33,7 +33,7 @@
      -Built-in RGB LED          -SG90 Angular Servo
      -FS5103R Continous Servo   -S1 and S2 push buttons
 
- Last-revised: 2-21-21
+ Last-revised: 2-22-21
 */
 
 /* DriverLib Includes */
